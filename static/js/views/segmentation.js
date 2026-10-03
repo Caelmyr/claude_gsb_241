@@ -18,7 +18,7 @@ window.Views.segmentation = (function () {
                 <option value="color">颜色聚类</option>
               </select></div>
               <div class="field"><label>阈值（threshold 方法）</label><input type="range" id="sg-value" min="0" max="255" value="127"></div>
-              <div class="field"><label>局部块大小（region 方法）</label><input type="range" id="sg-block" min="3" max="31" step="2" value="15"></div>
+              <div class="field"><label>灰度容差（region 方法）</label><input type="range" id="sg-block" min="3" max="31" step="2" value="15"></div>
               <div class="field"><label>颜色数（color 方法）</label><input type="range" id="sg-colors" min="2" max="12" value="6"></div>
               <div class="field"><label>叠加透明度</label><input type="range" id="sg-alpha" min="0" max="1" step="0.05" value="0.45"></div>
               <button class="btn btn-primary" id="sg-run">执行分割</button>

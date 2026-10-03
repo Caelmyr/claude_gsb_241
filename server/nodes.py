@@ -197,10 +197,10 @@ NODES["segment"] = _node(
     "segment", "图像分割", "计算机视觉",
     [_select("method", "方法", ["threshold", "region", "color"]),
      _range("value", "阈值", 0, 255, 1, 127),
-     _range("block", "局部块", 3, 31, 2, 15),
+     _range("block", "灰度容差", 3, 31, 2, 15),
      _range("colors", "颜色数", 2, 12, 1, 6),
      _range("alpha", "叠加透明度", 0, 1, 0.05, 0.45)],
-    _segmentation.segment, desc="阈值/区域/颜色分割")
+    _segmentation.segment, desc="阈值/区域生长/颜色分割")
 
 NODES["style_transfer"] = _node(
     "style_transfer", "风格迁移", "计算机视觉",

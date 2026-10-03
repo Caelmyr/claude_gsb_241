@@ -29,11 +29,16 @@ def threshold(image, params):
     mode = params.get("mode", "binary")
     gray = util.to_grayscale(image)
     if mode == "adaptive":
-        block = int(params.get("block", 15))
-        # 局部均值 = BoxBlur，再用原图减去局部均值，>0 判白
+        block = max(3, int(params.get("block", 15)))
+        # 局部均值作为局部基准；局部变化不足时回退到全局阈值，避免大块均匀区域被误判。
         local = gray.filter(ImageFilter.BoxBlur(block / 2.0))
-        diff = ImageChops.subtract(gray, local)
-        return diff.point(lambda v: 255 if v >= 0 else 0)
+        mask = gray.point(lambda v: 255 if v >= value else 0)
+        brighter = ImageChops.subtract(gray, local).point(lambda v: 255 if v > 5 else 0)
+        darker = ImageChops.subtract(local, gray).point(lambda v: 255 if v > 5 else 0)
+        # ImageChops.subtract 会把负差截断为 0，因此必须分别计算正负差，不能只判断 >=0。
+        mask.paste(0, mask=darker)
+        mask.paste(255, mask=brighter)
+        return mask
     return gray.point(lambda v: 255 if v >= value else 0)
 
 

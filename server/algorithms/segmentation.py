@@ -3,14 +3,14 @@
 纯 Pillow 实现：
 
 - threshold：全局（Otsu 自动或手定）二值化 -> 前景/背景两个区域。
-- region   ：自适应局部阈值 -> 二值 -> 连通域，得到多个空间区域。
+- region   ：从灰度相似度出发做区域生长，得到多个空间区域。
 - color    ：颜色量化（中位切分）-> 每个主色掩码做连通域 -> 颜色聚类区域。
 
 输出：半透明彩色覆盖层（每区域一色）+ 区域边界 + 区域统计（数量/覆盖率/最大区域）。
 """
 import colorsys
 
-from PIL import Image, ImageChops, ImageDraw, ImageFilter
+from PIL import Image, ImageDraw, ImageFilter
 
 from .. import config
 from . import util
@@ -48,13 +48,46 @@ def _otsu(gray):
     return best_t
 
 
+def _region_grow(gray, tolerance):
+    """用灰度相似度做无种子区域生长。
+
+    每个未标记像素作为新区域的种子，向 4-邻域扩展；邻域像素与种子灰度差
+    不超过 tolerance 时归入同一区域。不能用“当前像素与邻域像素比较”的链式
+    扩展，否则平滑渐变会把整张图串成一个区域。
+    """
+    w, h, rows = util.gray_matrix(gray)
+    labels = [[0] * w for _ in range(h)]
+    components = {}
+    next_label = 0
+    tolerance = max(0, int(tolerance))
+
+    for y in range(h):
+        for x in range(w):
+            if labels[y][x] != 0:
+                continue
+            seed_value = rows[y][x]
+            next_label += 1
+            label = next_label
+            labels[y][x] = label
+            stack = [(x, y)]
+            points = []
+            while stack:
+                cx, cy = stack.pop()
+                points.append((cx, cy))
+                for nx, ny in ((cx + 1, cy), (cx - 1, cy), (cx, cy + 1), (cx, cy - 1)):
+                    if not (0 <= nx < w and 0 <= ny < h):
+                        continue
+                    if labels[ny][nx] != 0:
+                        continue
+                    if abs(rows[ny][nx] - seed_value) <= tolerance:
+                        labels[ny][nx] = label
+                        stack.append((nx, ny))
+            components[label] = points
+    return labels, components
+
+
 def _binary_mask(gray, params):
     """根据 method 生成二值掩码（L 图像，255 为前景）。"""
-    method = params.get("method", "threshold")
-    if method == "region":
-        block = float(params.get("block", 15))
-        local = gray.filter(ImageFilter.BoxBlur(block / 2.0))
-        return ImageChops.subtract(gray, local).point(lambda v: 255 if v >= 0 else 0)
     value = params.get("value", None)
     if value is None:
         value = _otsu(gray)
@@ -109,11 +142,14 @@ def segment(image, params):
         labels, components = _color_clustering(work, int(params.get("colors", 6)))
     else:
         gray = util.to_grayscale(work)
-        mask = _binary_mask(gray, params)
-        labels, components = _components_from_mask(mask)
+        if method == "region":
+            labels, components = _region_grow(gray, params.get("block", 15))
+        else:
+            mask = _binary_mask(gray, params)
+            labels, components = _components_from_mask(mask)
 
-    region_colors = {0: (0, 0, 0)}
-    for i, label in enumerate(components.keys(), start=1):
+    region_colors = {}
+    for i, label in enumerate(components.keys()):
         region_colors[label] = _PALETTE[i % len(_PALETTE)]
 
     color_map = _labels_to_image(labels, w, h, region_colors)
