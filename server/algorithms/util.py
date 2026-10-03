@@ -10,7 +10,7 @@
 """
 import math
 
-from PIL import Image, ImageFilter, ImageOps
+from PIL import Image, ImageChops, ImageFilter, ImageOps
 
 from .. import config
 
@@ -52,6 +52,21 @@ def ensure_rgb(img: Image.Image) -> Image.Image:
         bg.paste(rgba, mask=rgba.split()[-1])
         return bg
     return img.convert("RGB")
+
+
+def local_mean_mask(img: Image.Image, block: int = 15):
+    """按局部均值生成二值掩码：像素不低于邻域均值时为前景。
+
+    不能直接用 ImageChops.subtract 后再判断 ``>= 0``：subtract 会把负差值
+    全部截断为 0，导致所有像素都满足条件并输出全白。这里把差值零点平移到
+    128，保留正负号；平坦区域与局部均值相等，仍判为前景，只有暗于邻域的
+    过渡带会成为分割边界。
+    """
+    gray = to_grayscale(img)
+    block = max(1, int(block))
+    local = gray.filter(ImageFilter.BoxBlur(block / 2.0))
+    diff = ImageChops.subtract(gray, local, scale=1.0, offset=128)
+    return diff.point(lambda v: 255 if v >= 128 else 0)
 
 
 # ---------------------------------------------------------------------------

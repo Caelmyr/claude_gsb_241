@@ -10,7 +10,7 @@
 """
 import colorsys
 
-from PIL import Image, ImageChops, ImageDraw, ImageFilter
+from PIL import Image, ImageDraw, ImageFilter
 
 from .. import config
 from . import util
@@ -53,8 +53,7 @@ def _binary_mask(gray, params):
     method = params.get("method", "threshold")
     if method == "region":
         block = float(params.get("block", 15))
-        local = gray.filter(ImageFilter.BoxBlur(block / 2.0))
-        return ImageChops.subtract(gray, local).point(lambda v: 255 if v >= 0 else 0)
+        return util.local_mean_mask(gray, block)
     value = params.get("value", None)
     if value is None:
         value = _otsu(gray)

@@ -1,5 +1,5 @@
 """颜色算法：灰度、反转、阈值、直方图均衡、通道平衡、色调分离、伪彩色。"""
-from PIL import Image, ImageChops, ImageFilter, ImageOps
+from PIL import Image, ImageOps
 
 from . import util
 
@@ -30,10 +30,7 @@ def threshold(image, params):
     gray = util.to_grayscale(image)
     if mode == "adaptive":
         block = int(params.get("block", 15))
-        # 局部均值 = BoxBlur，再用原图减去局部均值，>0 判白
-        local = gray.filter(ImageFilter.BoxBlur(block / 2.0))
-        diff = ImageChops.subtract(gray, local)
-        return diff.point(lambda v: 255 if v >= 0 else 0)
+        return util.local_mean_mask(gray, block)
     return gray.point(lambda v: 255 if v >= value else 0)
 
 
